@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	"x-ui/logger"
@@ -17,16 +18,27 @@ type LoginForm struct {
 	LoginSecret string `json:"loginSecret" form:"loginSecret"`
 }
 
+type LoginAttempt struct {
+	Timestamp   time.Time
+	Count       int
+	BannedUntil time.Time
+}
+
 type IndexController struct {
 	BaseController
 
 	settingService service.SettingService
 	userService    service.UserService
 	tgbot          service.Tgbot
+
+	loginAttempts map[string]*LoginAttempt
+	mu            sync.Mutex
 }
 
 func NewIndexController(g *gin.RouterGroup) *IndexController {
-	a := &IndexController{}
+	a := &IndexController{
+		loginAttempts: make(map[string]*LoginAttempt),
+	}
 	a.initRouter(g)
 	return a
 }
@@ -62,16 +74,51 @@ func (a *IndexController) login(c *gin.Context) {
 		return
 	}
 
+	ip := getRemoteIp(c)
+	now := time.Now()
+
+	a.mu.Lock()
+	if attempt, exists := a.loginAttempts[ip]; exists {
+		// Check if the IP is currently banned
+		if now.Before(attempt.BannedUntil) {
+			remainingTime := time.Until(attempt.BannedUntil).Seconds()
+			a.mu.Unlock()
+			logger.Warningf("IP %s is temporarily banned for %.0f seconds due to too many failed login attempts", ip, remainingTime)
+			pureJsonMsg(c, http.StatusForbidden, false, "Too many failed login attempts. Try again later.")
+			return
+		}
+		// Clean up old attempts if more than a minute has passed
+		if now.Sub(attempt.Timestamp) > time.Minute {
+			attempt.Count = 0
+			attempt.Timestamp = now
+		}
+		// Increment attempt count
+		attempt.Count++
+	} else {
+		a.loginAttempts[ip] = &LoginAttempt{Timestamp: now, Count: 1}
+	}
+	attempt := a.loginAttempts[ip]
+	a.mu.Unlock()
+
+	if attempt.Count > 3 {
+		a.mu.Lock()
+		attempt.BannedUntil = now.Add(3 * time.Minute) // Ban for 3 minutes
+		a.mu.Unlock()
+		logger.Warningf("IP %s is temporarily banned for 3 minutes due to too many failed login attempts", ip)
+		pureJsonMsg(c, http.StatusForbidden, false, "Too many failed login attempts. Try again later.")
+		return
+	}
+
 	user := a.userService.CheckUser(form.Username, form.Password, form.LoginSecret)
-	timeStr := time.Now().Format("2006-01-02 15:04:05")
+	timeStr := now.Format("2006-01-02 15:04:05")
 	if user == nil {
 		logger.Warningf("wrong username or password: \"%s\" \"%s\"", form.Username, form.Password)
-		a.tgbot.UserLoginNotify(form.Username, getRemoteIp(c), timeStr, 0)
+		a.tgbot.UserLoginNotify(form.Username, ip, timeStr, 0)
 		pureJsonMsg(c, http.StatusOK, false, I18nWeb(c, "pages.login.toasts.wrongUsernameOrPassword"))
 		return
 	} else {
-		logger.Infof("%s login success, Ip Address: %s\n", form.Username, getRemoteIp(c))
-		a.tgbot.UserLoginNotify(form.Username, getRemoteIp(c), timeStr, 1)
+		logger.Infof("%s login success, Ip Address: %s\n", form.Username, ip)
+		a.tgbot.UserLoginNotify(form.Username, ip, timeStr, 1)
 	}
 
 	sessionMaxAge, err := a.settingService.GetSessionMaxAge()
