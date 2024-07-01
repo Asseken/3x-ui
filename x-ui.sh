@@ -76,6 +76,10 @@ elif [[ "${release}" == "oracle" ]]; then
     if [[ ${os_version} -lt 8 ]]; then
         echo -e "${red} Please use Oracle Linux 8 or higher ${plain}\n" && exit 1
     fi
+elif [[ "${release}" == "kali" ]]; then
+    if [[ ${os_version} -lt 2020 ]]; then
+        echo -e "${red} Please use Kali Linux 2020 or higher ${plain}\n" && exit 1
+    fi 
 else
     echo -e "${red}Your operating system is not supported by this script.${plain}\n"
     echo "Please ensure you are using one of the following supported operating systems:"
@@ -91,6 +95,7 @@ else
     echo "- Rocky Linux 9+"
     echo "- Oracle Linux 8+"
     echo "- OpenSUSE Tumbleweed"
+    echo "- Kali Linux 2020+"
     exit 1
 
 fi
@@ -131,7 +136,7 @@ before_show_menu() {
 }
 
 install() {
-    bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/main/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/Asseken/3x-ui/main/install.sh)
     if [[ $? == 0 ]]; then
         if [[ $# == 0 ]]; then
             start
@@ -150,34 +155,10 @@ update() {
         fi
         return 0
     fi
-    bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/main/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/Asseken/3x-ui/main/install.sh)
     if [[ $? == 0 ]]; then
         LOGI "Update is complete, Panel has automatically restarted "
         exit 0
-    fi
-}
-
-update_menu() {
-    echo -e "${yellow}Updating Menu${plain}"
-    confirm "This function will update the menu to the latest changes." "y"
-    if [[ $? != 0 ]]; then
-        LOGE "Cancelled"
-        if [[ $# == 0 ]]; then
-            before_show_menu
-        fi
-        return 0
-    fi
-    
-    wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
-    chmod +x /usr/local/x-ui/x-ui.sh
-    chmod +x /usr/bin/x-ui
-    
-     if [[ $? == 0 ]]; then
-        echo -e "${green}Update successful. The panel has automatically restarted.${plain}"
-        exit 0
-    else
-        echo -e "${red}Failed to update the menu.${plain}"
-        return 1
     fi
 }
 
@@ -190,7 +171,7 @@ custom_version() {
         exit 1
     fi
 
-    download_link="https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh"
+    download_link="https://raw.githubusercontent.com/Asseken/3x-ui/master/install.sh"
 
     # Use the entered panel version in the download link
     install_command="bash <(curl -Ls $download_link) v$panel_version"
@@ -224,7 +205,7 @@ uninstall() {
     echo ""
     echo -e "Uninstalled Successfully.\n"
     echo "If you need to install this panel again, you can use below command:"
-    echo -e "${green}bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)${plain}"
+    echo -e "${green}bash <(curl -Ls https://raw.githubusercontent.com/Asseken/3x-ui/master/install.sh)${plain}"
     echo ""
     # Trap the SIGTERM signal
     trap delete_script SIGTERM
@@ -250,32 +231,6 @@ reset_user() {
     echo -e "${yellow} Panel login secret token disabled ${plain}"
     echo -e "${green} Please use the new login username and password to access the X-UI panel. Also remember them! ${plain}"
     confirm_restart
-}
-
-gen_random_string() {
-    local length="$1"
-    local random_string=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w "$length" | head -n 1)
-    echo "$random_string"
-}
-
-reset_webbasepath() {
-    echo -e "${yellow}Resetting Web Base Path${plain}"
-    
-    # Prompt user to set a new web base path
-    read -rp "Please set the new web base path [default is a random path]: " config_webBasePath
-    
-    # If user input is empty, generate a random path
-    if [[ -z $config_webBasePath ]]; then
-        config_webBasePath=$(gen_random_string 10)
-    fi
-    
-    # Apply the new web base path setting
-    /usr/local/x-ui/x-ui setting -webBasePath "${config_webBasePath}" >/dev/null 2>&1
-    systemctl restart x-ui
-    
-    # Display confirmation message
-    echo -e "Web base path has been reset to: ${green}${config_webBasePath}${plain}"
-    echo -e "${green}Please use the new web base path to access the panel.${plain}"
 }
 
 reset_config() {
@@ -503,7 +458,7 @@ enable_bbr() {
 }
 
 update_shell() {
-    wget -O /usr/bin/x-ui -N --no-check-certificate https://github.com/MHSanaei/3x-ui/raw/main/x-ui.sh
+    wget -O /usr/bin/x-ui -N --no-check-certificate https://github.com/Asseken/3x-ui/raw/main/x-ui.sh
     if [[ $? != 0 ]]; then
         echo ""
         LOGE "Failed to download script, Please check whether the machine can connect Github"
@@ -1303,62 +1258,57 @@ remove_iplimit() {
 show_usage() {
     echo "x-ui control menu usages: "
     echo "------------------------------------------"
-    echo -e "SUBCOMMANDS:"
-    echo -e "x-ui              - Admin Management Script"
-    echo -e "x-ui start        - Start"
-    echo -e "x-ui stop         - Stop"
-    echo -e "x-ui restart      - Restart"
-    echo -e "x-ui status       - Current Status"
-    echo -e "x-ui settings     - Current Settings"
-    echo -e "x-ui enable       - Enable Autostart on OS Startup"
-    echo -e "x-ui disable      - Disable Autostart on OS Startup"
-    echo -e "x-ui log          - Check logs"
+    echo -e "x-ui              - Enter control menu"
+    echo -e "x-ui start        - Start x-ui "
+    echo -e "x-ui stop         - Stop  x-ui "
+    echo -e "x-ui restart      - Restart x-ui "
+    echo -e "x-ui status       - Show x-ui status"
+    echo -e "x-ui enable       - Enable x-ui on system startup"
+    echo -e "x-ui disable      - Disable x-ui on system startup"
+    echo -e "x-ui log          - Check x-ui logs"
     echo -e "x-ui banlog       - Check Fail2ban ban logs"
-    echo -e "x-ui update       - Update"
-    echo -e "x-ui custom       - custom version"
-    echo -e "x-ui install      - Install"
-    echo -e "x-ui uninstall    - Uninstall"
+    echo -e "x-ui update       - Update x-ui "
+    echo -e "x-ui install      - Install x-ui "
+    echo -e "x-ui uninstall    - Uninstall x-ui "
     echo "------------------------------------------"
 }
 
 show_menu() {
     echo -e "
-  ${green}3X-UI Panel Management Script${plain}
+  ${green}3X-ui Panel Management Script${plain}
   ${green}0.${plain} Exit Script
 ————————————————
   ${green}1.${plain} Install
   ${green}2.${plain} Update
-  ${green}3.${plain} Update Menu
-  ${green}4.${plain} Custom Version
-  ${green}5.${plain} Uninstall
+  ${green}3.${plain} Custom Version
+  ${green}4.${plain} Uninstall
 ————————————————
-  ${green}6.${plain} Reset Username & Password & Secret Token
-  ${green}7.${plain} Reset Web Base Path
-  ${green}8.${plain} Reset Settings
-  ${green}9.${plain} Change Port
-  ${green}10.${plain} View Current Settings
+  ${green}5.${plain} Reset Username & Password & Secret Token
+  ${green}6.${plain} Reset Settings
+  ${green}7.${plain} Change Port
+  ${green}8.${plain} View Current Settings
 ————————————————
-  ${green}11.${plain} Start
-  ${green}12.${plain} Stop
-  ${green}13.${plain} Restart
-  ${green}14.${plain} Check Status
-  ${green}15.${plain} Check Logs
+  ${green}9.${plain} Start
+  ${green}10.${plain} Stop
+  ${green}11.${plain} Restart
+  ${green}12.${plain} Check Status
+  ${green}13.${plain} Check Logs
 ————————————————
-  ${green}16.${plain} Enable Autostart
-  ${green}17.${plain} Disable Autostart
+  ${green}14.${plain} Enable Autostart
+  ${green}15.${plain} Disable Autostart
 ————————————————
-  ${green}18.${plain} SSL Certificate Management
-  ${green}19.${plain} Cloudflare SSL Certificate
-  ${green}20.${plain} IP Limit Management
-  ${green}21.${plain} WARP Management
-  ${green}22.${plain} Firewall Management
+  ${green}16.${plain} SSL Certificate Management
+  ${green}17.${plain} Cloudflare SSL Certificate
+  ${green}18.${plain} IP Limit Management
+  ${green}19.${plain} WARP Management
+  ${green}20.${plain} Firewall Management
 ————————————————
-  ${green}23.${plain} Enable BBR 
-  ${green}24.${plain} Update Geo Files
-  ${green}25.${plain} Speedtest by Ookla
+  ${green}21.${plain} Enable BBR 
+  ${green}22.${plain} Update Geo Files
+  ${green}23.${plain} Speedtest by Ookla
 "
     show_status
-    echo && read -p "Please enter your selection [0-25]: " num
+    echo && read -p "Please enter your selection [0-23]: " num
 
     case "${num}" in
     0)
@@ -1371,76 +1321,70 @@ show_menu() {
         check_install && update
         ;;
     3)
-        check_install && update_menu
-        ;;
-    4)
         check_install && custom_version
         ;;
-    5)
+    4)
         check_install && uninstall
         ;;
-    6)
+    5)
         check_install && reset_user
         ;;
-    7)
-        check_install && reset_webbasepath
-        ;;
-    8)
+    6)
         check_install && reset_config
         ;;
-    9)
+    7)
         check_install && set_port
         ;;
-    10)
+    8)
         check_install && check_config
         ;;
-    11)
+    9)
         check_install && start
         ;;
-    12)
+    10)
         check_install && stop
         ;;
-    13)
+    11)
         check_install && restart
         ;;
-    14)
+    12)
         check_install && status
         ;;
-    15)
+    13)
         check_install && show_log
         ;;
-    16)
+    14)
         check_install && enable
         ;;
-    17)
+    15)
         check_install && disable
         ;;
-    18)
+    16)
         ssl_cert_issue_main
         ;;
-    19)
+    17)
         ssl_cert_issue_CF
         ;;
-    20)
+    18)
         iplimit_main
         ;;
-    21)
+    19)
         warp_cloudflare
         ;;
-    22)
+    20)
         firewall_menu
         ;;
-    23)
+    21)
         bbr_menu
         ;;
-    24)
+    22)
         update_geo
         ;;
-    25)
+    23)
         run_speedtest
         ;;
     *)
-        LOGE "Please enter the correct number [0-25]"
+        LOGE "Please enter the correct number [0-23]"
         ;;
     esac
 }
@@ -1459,9 +1403,6 @@ if [[ $# > 0 ]]; then
     "status")
         check_install 0 && status 0
         ;;
-    "settings")
-        check_install 0 && check_config 0
-        ;;
     "enable")
         check_install 0 && enable 0
         ;;
@@ -1476,9 +1417,6 @@ if [[ $# > 0 ]]; then
         ;;
     "update")
         check_install 0 && update 0
-        ;;
-    "custom")
-        check_install 0 && custom_version 0
         ;;
     "install")
         check_uninstall 0 && install 0
