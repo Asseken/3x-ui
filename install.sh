@@ -79,6 +79,10 @@ elif [[ "${release}" == "oracle" ]]; then
     if [[ ${os_version} -lt 8 ]]; then
         echo -e "${red} Please use Oracle Linux 8 or higher ${plain}\n" && exit 1
     fi
+elif [[ "${release}" == "kali" ]]; then
+    if [[ ${os_version} -lt 2020 ]]; then
+        echo -e "${red} Please use Kali Linux 2020 or higher ${plain}\n" && exit 1
+    fi    
 else
     echo -e "${red}Your operating system is not supported by this script.${plain}\n"
     echo "Please ensure you are using one of the following supported operating systems:"
