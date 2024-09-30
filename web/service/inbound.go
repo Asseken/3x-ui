@@ -2032,7 +2032,7 @@ func validateEmail(email string) (bool, error) {
 		return false, errors.New("email contains uppercase letters, please convert to lowercase")
 	}
 
-	emailPattern := `^[a-z0-9@._-]+$`
+	emailPattern := `^([\u4e00-\u9fa5]+|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})$`
 	if !regexp.MustCompile(emailPattern).MatchString(email) {
 		return false, errors.New("email contains invalid characters, please use only lowercase letters, digits, and @._-")
 	}
